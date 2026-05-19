@@ -1,0 +1,565 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>GridStudio Contrast</title>
+    <style>
+        :root {
+            --bg-color: #0b0b0c;
+            --panel-bg: #131315;
+            --border-color: rgba(255, 255, 255, 0.08);
+            --border-hover: rgba(255, 255, 255, 0.2);
+            --text-main: #f5f5f7;
+            --text-muted: #86868b;
+            --accent-color: #ffffff;
+            --accent-text: #000000;
+        }
+
+        @media (prefers-color-scheme: light) {
+            :root {
+                --bg-color: #f5f5f7;
+                --panel-bg: #ffffff;
+                --border-color: rgba(0, 0, 0, 0.08);
+                --border-hover: rgba(0, 0, 0, 0.2);
+                --text-main: #1d1d1f;
+                --text-muted: #86868b;
+                --accent-color: #1d1d1f;
+                --accent-text: #ffffff;
+            }
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
+            padding: 16px;
+            transition: background-color 0.4s, color 0.4s;
+            overflow-x: hidden;
+        }
+
+        header {
+            text-align: center;
+            margin: 10px 0 16px 0;
+        }
+
+        header h1 {
+            font-size: 20px;
+            font-weight: 400;
+            letter-spacing: 2px;
+            margin-bottom: 4px;
+        }
+
+        header p {
+            font-size: 10px;
+            color: var(--text-muted);
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+
+        .main-container {
+            width: 100%;
+            max-width: 480px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .control-block {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            background: var(--panel-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 12px;
+            z-index: 20;
+        }
+
+        .control-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .control-label {
+            font-size: 12px;
+            color: var(--text-muted);
+            font-weight: 500;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 4px;
+            background: rgba(128, 128, 128, 0.08);
+            padding: 4px;
+            border-radius: 10px;
+        }
+
+        .tab-btn {
+            background: transparent;
+            border: none;
+            color: var(--text-muted);
+            padding: 6px 14px;
+            font-size: 12px;
+            border-radius: 7px;
+            cursor: pointer;
+            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .tab-btn.active {
+            background: var(--bg-color);
+            color: var(--text-main);
+            box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+        }
+
+        .btn-download {
+            background: var(--accent-color);
+            color: var(--accent-text);
+            border: none;
+            padding: 8px 16px;
+            font-size: 12px;
+            font-weight: 500;
+            border-radius: 9px;
+            cursor: pointer;
+            transition: opacity 0.2s;
+        }
+        .btn-download:hover { opacity: 0.9; }
+
+        .canvas-outer-wrapper {
+            width: 100%;
+            height: 45vh; 
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+        }
+
+        .canvas-wrapper {
+            position: relative;
+            background: var(--panel-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 20px;
+            overflow: hidden;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.12);
+            transition: width 0.45s cubic-bezier(0.25, 1, 0.5, 1), 
+                        height 0.45s cubic-bezier(0.25, 1, 0.5, 1), 
+                        border-color 0.4s;
+            will-change: width, height; 
+            transform: translateZ(0);
+        }
+
+        .workspace {
+            width: 100%;
+            height: 100%;
+            display: grid;
+            transition: grid-template-columns 0.45s cubic-bezier(0.25, 1, 0.5, 1),
+                        grid-template-rows 0.45s cubic-bezier(0.25, 1, 0.5, 1);
+        }
+
+        .canvas-wrapper[data-ratio="16-9"] .workspace[data-layout="2"] {
+            grid-template-columns: repeat(2, 1fr);
+            grid-template-rows: 1fr;
+        }
+        .canvas-wrapper[data-ratio="9-16"] .workspace[data-layout="2"] {
+            grid-template-columns: 1fr;
+            grid-template-rows: repeat(2, 1fr);
+        }
+        
+        .workspace[data-layout="4"] {
+            grid-template-columns: repeat(2, 1fr) !important;
+            grid-template-rows: repeat(2, 1fr) !important;
+        }
+
+        .grid-slot {
+            position: relative;
+            border: 0.5px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+
+        .upload-trigger {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            color: var(--text-muted);
+            transition: background-color 0.3s, color 0.3s;
+        }
+
+        .upload-trigger:hover {
+            background-color: rgba(128, 128, 128, 0.04);
+            color: var(--text-main);
+        }
+
+        .upload-trigger svg {
+            width: 18px;
+            height: 18px;
+            stroke: currentColor;
+            stroke-width: 1.5;
+            fill: none;
+        }
+
+        .upload-trigger span { font-size: 10px; letter-spacing: 0.5px; }
+
+        .slot-image {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-size: cover;
+            background-position: center;
+            animation: fadeIn 0.4s ease forwards;
+        }
+
+        .workspace[data-layout="2"] .grid-slot:nth-child(n+3) { display: none; }
+        .file-input { display: none; }
+
+        .contrast-tag {
+            position: absolute;
+            background: rgba(0, 0, 0, 0.65);
+            color: #ffffff;
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            font-size: 11px;
+            font-weight: 400;
+            letter-spacing: 2px;
+            padding: 4px 10px;
+            border-radius: 4px;
+            z-index: 10;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.4s cubic-bezier(0.25, 1, 0.5, 1), 
+                        left 0.45s cubic-bezier(0.25, 1, 0.5, 1), 
+                        top 0.45s cubic-bezier(0.25, 1, 0.5, 1),
+                        right 0.45s cubic-bezier(0.25, 1, 0.5, 1),
+                        bottom 0.45s cubic-bezier(0.25, 1, 0.5, 1);
+            will-change: left, top, right, bottom, opacity;
+        }
+
+        .workspace[data-layout="2"] ~ .contrast-tag {
+            opacity: 1;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: scale(1.005); }
+            to { opacity: 1; transform: scale(1); }
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>GRIDSTUDIO Contrast</h1>
+        <p>Aesthetic Aspect & Contrast Atelier</p>
+    </header>
+
+    <div class="main-container">
+        <!-- 控制台 -->
+        <div class="control-block">
+            <div class="control-row">
+                <span class="control-label">网格结构</span>
+                <div class="tabs" id="layoutTabs">
+                    <button class="tab-btn active" onclick="switchLayout(2)">两宫格 (对比)</button>
+                    <button class="tab-btn" onclick="switchLayout(4)">四宫格</button>
+                </div>
+            </div>
+            <div class="control-row">
+                <span class="control-label">裁剪比例</span>
+                <div class="tabs" id="ratioTabs">
+                    <button class="tab-btn active" onclick="switchRatio('16-9')">16 : 9 (左右分屏)</button>
+                    <button class="tab-btn" onclick="switchRatio('9-16')">9 : 16 (上下分屏)</button>
+                </div>
+            </div>
+            <!-- 新增：导出分辨率选项 -->
+            <div class="control-row">
+                <span class="control-label">导出分辨率</span>
+                <div class="tabs" id="resTabs">
+                    <button class="tab-btn active" onclick="switchResolution('1080p')">1080P</button>
+                    <button class="tab-btn" onclick="switchResolution('2k')">2K</button>
+                    <button class="tab-btn" onclick="switchResolution('4k')">4K</button>
+                </div>
+            </div>
+            <div class="control-row" style="margin-top: 4px; padding-top: 10px; border-top: 1px solid var(--border-color);">
+                <span class="control-label" style="opacity: 0.6;" id="resIndicator">* 导出尺寸: 1920 × 1080</span>
+                <button class="btn-download" onclick="exportCollage()">导出画布</button>
+            </div>
+        </div>
+
+        <!-- 弹性画布外壳 -->
+        <div class="canvas-outer-wrapper" id="outerWrapper">
+            <div class="canvas-wrapper" id="canvasWrapper" data-ratio="16-9">
+                <div class="workspace" id="workspace" data-layout="2">
+                    <div class="grid-slot">
+                        <div class="upload-trigger" id="trigger-1" onclick="triggerUpload(1)">
+                            <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg><span>IMAGE 01</span>
+                        </div>
+                        <div class="slot-image" id="preview-1" style="display: none;"></div>
+                        <input type="file" id="input-1" class="file-input" accept="image/*" onchange="handleImageUpload(event, 1)">
+                    </div>
+                    <div class="grid-slot">
+                        <div class="upload-trigger" id="trigger-2" onclick="triggerUpload(2)">
+                            <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg><span>IMAGE 02</span>
+                        </div>
+                        <div class="slot-image" id="preview-2" style="display: none;"></div>
+                        <input type="file" id="input-2" class="file-input" accept="image/*" onchange="handleImageUpload(event, 2)">
+                    </div>
+                    <div class="grid-slot">
+                        <div class="upload-trigger" id="trigger-3" onclick="triggerUpload(3)">
+                            <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg><span>IMAGE 03</span>
+                        </div>
+                        <div class="slot-image" id="preview-3" style="display: none;"></div>
+                        <input type="file" id="input-3" class="file-input" accept="image/*" onchange="handleImageUpload(event, 3)">
+                    </div>
+                    <div class="grid-slot">
+                        <div class="upload-trigger" id="trigger-4" onclick="triggerUpload(4)">
+                            <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg><span>IMAGE 04</span>
+                        </div>
+                        <div class="slot-image" id="preview-4" style="display: none;"></div>
+                        <input type="file" id="input-4" class="file-input" accept="image/*" onchange="handleImageUpload(event, 4)">
+                    </div>
+                </div>
+
+                <div class="contrast-tag" id="tagBefore">前</div>
+                <div class="contrast-tag" id="tagAfter">后</div>
+            </div>
+        </div>
+    </div>
+
+    <canvas id="exportCanvas" style="display: none;"></canvas>
+
+    <script>
+        const imageData = { 1: null, 2: null, 3: null, 4: null };
+        let currentLayout = 2;
+        let currentRatio = '16-9';
+        let currentRes = '1080p'; // 默认 1080p
+
+        const outerWrapper = document.getElementById('outerWrapper');
+        const canvasWrapper = document.getElementById('canvasWrapper');
+        const tagBefore = document.getElementById('tagBefore');
+        const tagAfter = document.getElementById('tagAfter');
+        const resIndicator = document.getElementById('resIndicator');
+
+        // 分辨率预设映射表
+        const resPresets = {
+            '16-9': { '1080p': [1920, 1080], '2k': [2560, 1440], '4k': [3840, 2160] },
+            '9-16': { '1080p': [1080, 1920], '2k': [1440, 2560], '4k': [2160, 3840] }
+        };
+
+        function resizeCanvasEngine() {
+            const containerWidth = outerWrapper.clientWidth;
+            const containerHeight = outerWrapper.clientHeight;
+
+            let targetWidth, targetHeight;
+
+            if (currentRatio === '16-9') {
+                targetWidth = containerWidth;
+                targetHeight = containerWidth * (9 / 16);
+                if (targetHeight > containerHeight) {
+                    targetHeight = containerHeight;
+                    targetWidth = targetHeight * (16 / 9);
+                }
+            } else {
+                targetHeight = containerHeight;
+                targetWidth = targetHeight * (9 / 16);
+                if (targetWidth > containerWidth) {
+                    targetWidth = containerWidth;
+                    targetHeight = targetWidth * (16 / 9);
+                }
+            }
+
+            canvasWrapper.style.width = `${Math.round(targetWidth)}px`;
+            canvasWrapper.style.height = `${Math.round(targetHeight)}px`;
+
+            const safePadding = 12;
+            tagBefore.style.left = 'auto'; tagBefore.style.top = 'auto'; tagBefore.style.right = 'auto'; tagBefore.style.bottom = 'auto';
+            tagAfter.style.left = 'auto'; tagAfter.style.top = 'auto'; tagAfter.style.right = 'auto'; tagAfter.style.bottom = 'auto';
+
+            if (currentRatio === '16-9') {
+                tagBefore.style.left = `${safePadding}px`;
+                tagBefore.style.bottom = `${safePadding}px`;
+                tagAfter.style.right = `${safePadding}px`;
+                tagAfter.style.bottom = `${safePadding}px`;
+            } else {
+                tagBefore.style.left = `${safePadding}px`;
+                tagBefore.style.top = `${safePadding}px`;
+                tagAfter.style.left = `${safePadding}px`;
+                tagAfter.style.bottom = `${safePadding}px`;
+            }
+
+            // 更新左下角的尺寸文本提示
+            const [w, h] = resPresets[currentRatio][currentRes];
+            resIndicator.textContent = `* 导出尺寸: ${w} × ${h}`;
+        }
+
+        window.addEventListener('resize', resizeCanvasEngine);
+        new ResizeObserver(resizeCanvasEngine).observe(outerWrapper);
+
+        function switchLayout(layout) {
+            currentLayout = layout;
+            document.getElementById('workspace').setAttribute('data-layout', layout);
+            updateTabUI('layoutTabs', layout === 2 ? 0 : 1);
+            resizeCanvasEngine();
+        }
+
+        function switchRatio(ratio) {
+            currentRatio = ratio;
+            canvasWrapper.setAttribute('data-ratio', ratio);
+            updateTabUI('ratioTabs', ratio === '16-9' ? 0 : 1);
+            resizeCanvasEngine();
+        }
+
+        function switchResolution(res) {
+            currentRes = res;
+            const idx = res === '1080p' ? 0 : (res === '2k' ? 1 : 2);
+            updateTabUI('resTabs', idx);
+            resizeCanvasEngine();
+        }
+
+        function updateTabUI(containerId, activeIndex) {
+            const btns = document.querySelectorAll(`#${containerId} .tab-btn`);
+            btns.forEach((btn, idx) => btn.classList.toggle('active', idx === activeIndex));
+        }
+
+        function triggerUpload(slotId) {
+            document.getElementById(`input-${slotId}`).click();
+        }
+
+        function handleImageUpload(event, slotId) {
+            const file = event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const img = new Image();
+                img.onload = function() {
+                    imageData[slotId] = img;
+                    const preview = document.getElementById(`preview-${slotId}`);
+                    preview.style.backgroundImage = `url('${e.target.result}')`;
+                    preview.style.display = 'block';
+                    document.getElementById(`trigger-${slotId}`).style.opacity = '0';
+                };
+                img.src = e.target.result;
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function drawImageCover(ctx, img, x, y, w, h) {
+            const imgRatio = img.width / img.height;
+            const targetRatio = w / h;
+            let sx, sy, sw, sh;
+            if (imgRatio > targetRatio) {
+                sh = img.height; sw = sh * targetRatio; sx = (img.width - sw) / 2; sy = 0;
+            } else {
+                sw = img.width; sh = sw / targetRatio; sx = 0; sy = (img.height - sh) / 2;
+            }
+            ctx.drawImage(img, sx, sy, sw, sh, x, y, w, h);
+        }
+
+        function exportCollage() {
+            const requiredSlots = currentLayout === 2 ? [1, 2] : [1, 2, 3, 4];
+            if (requiredSlots.some(slot => !imageData[slot])) {
+                alert('请先填满对应的图片格子。');
+                return;
+            }
+
+            const canvas = document.getElementById('exportCanvas');
+            const ctx = canvas.getContext('2d');
+            
+            // 动态读取预设分辨率尺寸
+            const [canvasWidth, canvasHeight] = resPresets[currentRatio][currentRes];
+
+            canvas.width = canvasWidth;
+            canvas.height = canvasHeight;
+
+            ctx.fillStyle = window.getComputedStyle(document.documentElement).getPropertyValue('--bg-color').trim();
+            ctx.fillRect(0, 0, canvasWidth, canvasHeight);
+
+            if (currentLayout === 2) {
+                if (currentRatio === '16-9') {
+                    const w = canvasWidth / 2;
+                    drawImageCover(ctx, imageData[1], 0, 0, w, canvasHeight);
+                    drawImageCover(ctx, imageData[2], w, 0, w, canvasHeight);
+                } else {
+                    const h = canvasHeight / 2;
+                    drawImageCover(ctx, imageData[1], 0, 0, canvasWidth, h);
+                    drawImageCover(ctx, imageData[2], 0, h, canvasWidth, h);
+                }
+            } else {
+                const w = canvasWidth / 2, h = canvasHeight / 2;
+                drawImageCover(ctx, imageData[1], 0, 0, w, h);
+                drawImageCover(ctx, imageData[2], w, 0, w, h);
+                drawImageCover(ctx, imageData[3], 0, h, w, h);
+                drawImageCover(ctx, imageData[4], w, h, w, h);
+            }
+
+            // 两宫格模式下渲染水印
+            if (currentLayout === 2) {
+                // 基于画布真实高宽动态计算水印尺寸，保证不同分辨率下比例绝对完美
+                const tagW = currentRatio === '16-9' ? canvasWidth * 0.045 : canvasWidth * 0.08;
+                const tagH = currentRatio === '16-9' ? canvasHeight * 0.032 : canvasHeight * 0.018;
+                const paddingSide = canvasWidth * 0.02; 
+                const paddingVertical = canvasHeight * 0.02;
+                const radius = Math.max(4, canvasWidth * 0.003); // 动态圆角
+                const fontSize = Math.max(16, currentRatio === '16-9' ? canvasHeight * 0.015 : canvasWidth * 0.026); // 动态字号
+
+                function drawWatermark(text, x, y) {
+                    ctx.save();
+                    ctx.fillStyle = 'rgba(0, 0, 0, 0.65)';
+                    ctx.beginPath();
+                    ctx.roundRect(x, y, tagW, tagH, radius);
+                    ctx.fill();
+
+                    ctx.fillStyle = '#ffffff';
+                    ctx.font = `400 ${fontSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    // 稍微做一点像素修正，保证文字在盒子中绝对居中
+                    ctx.fillText(text, x + tagW / 2, y + tagH / 2 + (fontSize * 0.05));
+                    ctx.restore();
+                }
+
+                if (currentRatio === '16-9') {
+                    const targetY = canvasHeight - paddingVertical - tagH;
+                    drawWatermark('前', paddingSide, targetY);
+                    drawWatermark('后', canvasWidth - paddingSide - tagW, targetY);
+                } else {
+                    drawWatermark('前', paddingSide, paddingVertical);
+                    drawWatermark('后', paddingSide, canvasHeight - paddingVertical - tagH);
+                }
+            }
+
+            const dataURL = canvas.toDataURL('image/jpeg', 0.95);
+            const link = document.createElement('a');
+            link.download = `GridStudio_${currentRatio}_${currentRes}_${Date.now()}.jpg`;
+            link.href = dataURL;
+            link.click();
+        }
+
+        resizeCanvasEngine();
+    </script>
+</body>
+</html>
